@@ -25,6 +25,8 @@ interface WizardSelections {
   duration: string;
   language: string;
   script: string;
+  referenceImage: string;
+  referenceImageUrl: string;
 }
 
 interface VideoWizardProps {
