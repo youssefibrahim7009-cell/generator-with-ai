@@ -39,6 +39,7 @@ const STEPS = [
   { key: "scene", label: "المشهد", icon: MapPin },
   { key: "voice", label: "الصوت", icon: Mic },
   { key: "duration", label: "المدة", icon: Clock },
+  { key: "image", label: "صورة مرجعية", icon: FileText },
   { key: "language", label: "اللغة", icon: Globe },
   { key: "script", label: "السكريبت", icon: FileText },
 ] as const;
