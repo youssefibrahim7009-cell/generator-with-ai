@@ -91,7 +91,10 @@ const VideoWizard = ({ onComplete }: VideoWizardProps) => {
     duration: "",
     language: "",
     script: "",
+    referenceImage: "none",
+    referenceImageUrl: "",
   });
+  const [uploading, setUploading] = useState(false);
 
   const setField = (key: keyof WizardSelections, value: string) => {
     setSelections((prev) => ({ ...prev, [key]: value }));
