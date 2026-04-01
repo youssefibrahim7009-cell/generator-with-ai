@@ -1,11 +1,10 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Clapperboard, Sparkles, Loader2 } from "lucide-react";
+import { Clapperboard, Sparkles, Loader2, ArrowRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import VideoPreview from "@/components/VideoPreview";
-import VideoSettings from "@/components/VideoSettings";
-import SceneEditor, { type SceneData, defaultScene } from "@/components/SceneEditor";
+import VideoWizard from "@/components/VideoWizard";
 
 interface GeneratedScene {
   title: string;
@@ -14,34 +13,83 @@ interface GeneratedScene {
   error?: string;
 }
 
+const STYLE_MAP: Record<string, string> = {
+  funny: "cartoon",
+  cinematic: "cinematic",
+  viral: "hyper_realistic",
+  dramatic: "cinematic",
+};
+
+const SCENE_MAP: Record<string, string> = {
+  kitchen: "a professional modern kitchen with warm lighting, cooking utensils, and marble countertops",
+  street: "a busy urban street with buildings, cars, and city atmosphere",
+  studio: "a professional recording studio or broadcast set with dramatic lighting",
+  room: "a cozy well-decorated room with furniture, warm ambient lighting",
+};
+
+const VOICE_MAP: Record<string, string> = {
+  male: "a confident male narrator",
+  female: "a warm female narrator",
+  energetic: "an energetic and enthusiastic narrator",
+  calm: "a calm and soothing narrator",
+};
+
+const VIDEO_TYPE_MAP: Record<string, string> = {
+  talking_fruit: "3D Pixar-style animated talking fruit character with expressive face, arms, and legs, cartoon-like proportions, subsurface scattering",
+  human_presenter: "a realistic human presenter speaking to camera, professional appearance, natural gestures and expressions",
+  advertisement: "a polished commercial advertisement scene with product-focused composition and dramatic lighting",
+  story: "a narrative story scene with characters, environment, and dramatic composition",
+  educational: "an educational presentation scene with clear visual elements, infographics, and instructional tone",
+};
+
 const Index = () => {
   const { toast } = useToast();
-  const [scenes, setScenes] = useState<SceneData[]>([
-    { ...defaultScene(), title: "المشهد 1" },
-  ]);
-  const [style, setStyle] = useState("cinematic");
-  const [duration, setDuration] = useState("5");
-  const [resolution, setResolution] = useState("1080p");
-  const [quality, setQuality] = useState("standard");
+  const [wizardDone, setWizardDone] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedScenes, setGeneratedScenes] = useState<GeneratedScene[]>([]);
   const [showPreview, setShowPreview] = useState(false);
-  const [generatingIndex, setGeneratingIndex] = useState(-1);
+  const [wizardData, setWizardData] = useState<any>(null);
 
-  const handleGenerate = async () => {
-    const validScenes = scenes.filter((s) => s.description.trim());
-    if (validScenes.length === 0) {
-      toast({ title: "خطأ", description: "يرجى إضافة وصف لمشهد واحد على الأقل", variant: "destructive" });
-      return;
-    }
-
+  const handleWizardComplete = async (selections: any) => {
+    setWizardData(selections);
+    setWizardDone(true);
     setIsGenerating(true);
     setGeneratedScenes([]);
     setShowPreview(false);
 
+    const style = STYLE_MAP[selections.style] || "cinematic";
+    const sceneDesc = selections.scene === "custom"
+      ? selections.customScene
+      : SCENE_MAP[selections.scene] || selections.scene;
+    const videoTypeDesc = VIDEO_TYPE_MAP[selections.videoType] || "";
+    const voiceDesc = VOICE_MAP[selections.voice] || "";
+    const durationSec = parseInt(selections.duration) || 10;
+    const sceneCount = Math.max(1, Math.ceil(durationSec / 10));
+
+    const scenes = [];
+    const scriptParts = selections.script.split(/[.!?،。\n]+/).filter((s: string) => s.trim());
+
+    for (let i = 0; i < sceneCount; i++) {
+      const partScript = scriptParts.slice(
+        Math.floor(i * scriptParts.length / sceneCount),
+        Math.floor((i + 1) * scriptParts.length / sceneCount)
+      ).join(". ") || selections.script;
+
+      scenes.push({
+        title: `مشهد ${i + 1}`,
+        description: `${videoTypeDesc}. Scene set in ${sceneDesc}. The character is performing: "${partScript}". Language: ${selections.language}. Narrated by ${voiceDesc}. Fully animated scene with character body movement, hand gestures, facial expressions, lip sync, walking, blinking. Realistic environment with depth. Cinematic lighting and real camera movement (pan, track). NOT a static image.`,
+        characters: videoTypeDesc,
+        cameraAngle: i === 0 ? "wide" : i === sceneCount - 1 ? "close_up" : "tracking",
+        lighting: "cinematic",
+        mood: selections.style === "funny" ? "playful, comedic, bright" : selections.style === "dramatic" ? "intense, emotional, deep" : "engaging, professional",
+        props: "",
+        colorGrading: "teal_orange",
+      });
+    }
+
     try {
       const { data, error } = await supabase.functions.invoke("generate-scenes", {
-        body: { scenes: validScenes, style, resolution, quality },
+        body: { scenes, style, resolution: "1080p", quality: "standard" },
       });
 
       if (error) throw error;
@@ -50,19 +98,31 @@ const Index = () => {
         setGeneratedScenes(data.scenes);
         setShowPreview(true);
         const successCount = data.scenes.filter((s: GeneratedScene) => s.imageUrl).length;
-        toast({ title: "تم الإنتاج! 🎬", description: `تم توليد ${successCount} من ${data.scenes.length} مشهد بجودة ${quality === "premium" ? "فائقة" : "قياسية"}` });
+        toast({
+          title: "تم الإنتاج! 🎬",
+          description: `تم توليد ${successCount} مشهد بنجاح`,
+        });
       }
     } catch (err: any) {
       console.error(err);
-      const msg = err.message || "فشل في توليد المشاهد";
-      toast({ title: "خطأ", description: msg, variant: "destructive" });
+      toast({
+        title: "خطأ",
+        description: err.message || "فشل في توليد المشاهد",
+        variant: "destructive",
+      });
     } finally {
       setIsGenerating(false);
-      setGeneratingIndex(-1);
     }
   };
 
-  const totalDuration = scenes.filter((s) => s.description.trim()).length * parseInt(duration);
+  const handleReset = () => {
+    setWizardDone(false);
+    setGeneratedScenes([]);
+    setShowPreview(false);
+    setWizardData(null);
+  };
+
+  const sceneDuration = wizardData ? Math.floor(parseInt(wizardData.duration) / Math.max(1, generatedScenes.length)) : 5;
 
   return (
     <div className="min-h-screen bg-gradient-hero">
@@ -70,13 +130,12 @@ const Index = () => {
       <div className="fixed inset-0 pointer-events-none overflow-hidden">
         <div className="absolute top-1/4 -left-32 w-96 h-96 rounded-full bg-primary/5 blur-3xl animate-pulse-glow" />
         <div className="absolute bottom-1/4 -right-32 w-96 h-96 rounded-full bg-accent/5 blur-3xl animate-pulse-glow" style={{ animationDelay: "1.5s" }} />
-        <div className="absolute top-3/4 left-1/2 w-64 h-64 rounded-full bg-primary/3 blur-3xl animate-pulse-glow" style={{ animationDelay: "3s" }} />
       </div>
 
       <div className="relative z-10">
         {/* Header */}
         <header className="border-b border-border/50 backdrop-blur-sm bg-background/50">
-          <div className="container mx-auto px-6 py-4 flex items-center justify-between">
+          <div className="container mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-lg bg-primary/10 glow-primary">
                 <Clapperboard className="w-6 h-6 text-primary" />
@@ -86,91 +145,51 @@ const Index = () => {
                 <p className="text-xs text-muted-foreground">إنتاج فيديوهات سينمائية بالذكاء الاصطناعي</p>
               </div>
             </div>
-            {totalDuration > 0 && (
-              <div className="text-xs font-display text-muted-foreground bg-secondary/50 rounded-lg px-3 py-1.5">
-                المدة التقديرية: <span className="text-primary font-semibold">{totalDuration} ثانية</span>
-                {" · "}
-                {scenes.filter((s) => s.description.trim()).length} مشاهد
-              </div>
+            {wizardDone && (
+              <Button variant="outline" size="sm" onClick={handleReset} className="border-border/50 text-xs">
+                فيديو جديد
+              </Button>
             )}
           </div>
         </header>
 
-        <main className="container mx-auto px-6 py-8">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Left Panel - Controls */}
+        <main className="container mx-auto px-4 sm:px-6 py-6 sm:py-8 max-w-4xl">
+          {!wizardDone ? (
+            <div className="max-w-lg mx-auto">
+              <div className="text-center mb-6">
+                <h2 className="font-display text-2xl font-bold text-gradient mb-2">أنشئ فيديو بالذكاء الاصطناعي</h2>
+                <p className="text-sm text-muted-foreground">اختر الخيارات خطوة بخطوة وسنصنع لك فيديو سينمائي احترافي</p>
+              </div>
+              <VideoWizard onComplete={handleWizardComplete} />
+            </div>
+          ) : (
             <div className="space-y-6">
-              <VideoSettings
-                style={style} setStyle={setStyle}
-                duration={duration} setDuration={setDuration}
-                resolution={resolution} setResolution={setResolution}
-                quality={quality} setQuality={setQuality}
-              />
-
-              <SceneEditor scenes={scenes} setScenes={setScenes} />
-
-              {/* Generate Button */}
-              <Button
-                onClick={handleGenerate}
-                disabled={isGenerating}
-                className="w-full h-13 font-display font-semibold text-base glow-primary bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl"
-                size="lg"
-              >
-                {isGenerating ? (
-                  <>
-                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                    جاري الإنتاج بجودة {quality === "premium" ? "فائقة" : "قياسية"}...
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="w-5 h-5 mr-2" />
-                    إنتاج الفيديو بالذكاء الاصطناعي
-                  </>
-                )}
-              </Button>
-
               {isGenerating && (
-                <div className="bg-gradient-card rounded-xl border border-primary/20 p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                      <Loader2 className="w-5 h-5 text-primary animate-spin" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-display font-medium">جاري معالجة المشاهد...</p>
-                      <p className="text-xs text-muted-foreground">قد يستغرق الأمر دقيقة لكل مشهد حسب الجودة المختارة</p>
-                    </div>
+                <div className="bg-gradient-card rounded-xl border border-primary/20 p-6 text-center">
+                  <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
+                    <Loader2 className="w-8 h-8 text-primary animate-spin" />
                   </div>
-                  <div className="mt-3 h-1.5 bg-secondary rounded-full overflow-hidden">
-                    <div className="h-full bg-gradient-to-r from-primary to-accent rounded-full animate-pulse" style={{ width: "60%" }} />
+                  <h3 className="font-display text-lg font-bold mb-1">جاري إنتاج الفيديو...</h3>
+                  <p className="text-sm text-muted-foreground">يتم توليد المشاهد بالذكاء الاصطناعي، قد يستغرق الأمر دقيقة</p>
+                  <div className="mt-4 h-2 bg-secondary rounded-full overflow-hidden max-w-xs mx-auto">
+                    <div className="h-full bg-gradient-to-r from-primary to-accent rounded-full animate-pulse" style={{ width: "70%" }} />
                   </div>
                 </div>
               )}
-            </div>
 
-            {/* Right Panel - Preview */}
-            <div className="lg:sticky lg:top-8 lg:self-start">
-              {showPreview && generatedScenes.length > 0 ? (
-                <VideoPreview scenes={generatedScenes} sceneDuration={parseInt(duration)} />
-              ) : (
-                <div className="bg-gradient-card rounded-xl border border-border/50 aspect-video flex flex-col items-center justify-center gap-4">
-                  <div className="relative">
-                    <div className="w-24 h-24 rounded-2xl bg-secondary/50 flex items-center justify-center animate-float">
-                      <Clapperboard className="w-12 h-12 text-muted-foreground/30" />
-                    </div>
-                    <div className="absolute -top-2 -right-2 w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center animate-pulse-glow">
-                      <Sparkles className="w-4 h-4 text-primary/50" />
-                    </div>
-                  </div>
-                  <div className="text-center max-w-xs">
-                    <p className="text-muted-foreground font-display font-medium">معاينة الفيديو</p>
-                    <p className="text-xs text-muted-foreground/60 mt-1 leading-relaxed">
-                      أضف وصفاً تفصيلياً لكل مشهد مع الشخصيات والإضاءة وزوايا الكاميرا، ثم اضغط "إنتاج" لتوليد فيديو سينمائي مذهل
-                    </p>
-                  </div>
+              {showPreview && generatedScenes.length > 0 && (
+                <VideoPreview scenes={generatedScenes} sceneDuration={sceneDuration} />
+              )}
+
+              {showPreview && (
+                <div className="flex justify-center gap-3">
+                  <Button variant="outline" onClick={handleReset} className="border-border/50">
+                    إنشاء فيديو جديد
+                  </Button>
                 </div>
               )}
             </div>
-          </div>
+          )}
         </main>
       </div>
     </div>
