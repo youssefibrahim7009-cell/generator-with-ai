@@ -177,6 +177,53 @@ const VideoWizard = ({ onComplete }: VideoWizardProps) => {
       );
     if (step === "voice") return renderOptionGrid(VOICES, "voice");
     if (step === "duration") return renderOptionGrid(DURATIONS, "duration");
+    if (step === "image") {
+      const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        setUploading(true);
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (!session) return;
+          const path = `${session.user.id}/${Date.now()}-${file.name}`;
+          const { error } = await supabase.storage.from("reference-images").upload(path, file);
+          if (error) throw error;
+          const { data: urlData } = supabase.storage.from("reference-images").getPublicUrl(path);
+          setField("referenceImage", "upload");
+          setField("referenceImageUrl", urlData.publicUrl);
+        } catch {
+          setField("referenceImage", "none");
+        } finally {
+          setUploading(false);
+        }
+      };
+
+      return (
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              onClick={() => { setField("referenceImage", "none"); setField("referenceImageUrl", ""); }}
+              className={`p-4 rounded-xl border-2 text-center transition-all ${selections.referenceImage === "none" ? "border-primary bg-primary/10" : "border-border/40 bg-secondary/30 hover:border-border"}`}
+            >
+              <div className="text-3xl mb-2">🤖</div>
+              <p className="text-sm font-display font-semibold">بدون صورة</p>
+              <p className="text-[10px] text-muted-foreground">AI يولد كل شيء</p>
+            </button>
+            <label className={`p-4 rounded-xl border-2 text-center transition-all cursor-pointer ${selections.referenceImage === "upload" ? "border-primary bg-primary/10" : "border-border/40 bg-secondary/30 hover:border-border"}`}>
+              <div className="text-3xl mb-2">📷</div>
+              <p className="text-sm font-display font-semibold">{uploading ? "جاري الرفع..." : "رفع صورة"}</p>
+              <p className="text-[10px] text-muted-foreground">صورة مرجعية</p>
+              <input type="file" accept="image/*" className="hidden" onChange={handleUpload} />
+            </label>
+          </div>
+          {selections.referenceImageUrl && (
+            <div className="rounded-xl overflow-hidden border border-border/30">
+              <img src={selections.referenceImageUrl} alt="Reference" className="w-full h-40 object-cover" />
+            </div>
+          )}
+        </div>
+      );
+    }
     if (step === "language")
       return (
         <div className="space-y-3">
