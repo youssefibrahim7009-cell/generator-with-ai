@@ -107,6 +107,7 @@ const VideoWizard = ({ onComplete }: VideoWizardProps) => {
     if (step === "scene") return !!selections.scene && (selections.scene !== "custom" || !!selections.customScene.trim());
     if (step === "voice") return !!selections.voice;
     if (step === "duration") return !!selections.duration;
+    if (step === "image") return !!selections.referenceImage;
     if (step === "language") return !!selections.language.trim();
     if (step === "script") return !!selections.script.trim();
     return false;
