@@ -14,8 +14,8 @@ export default {
     },
     extend: {
       fontFamily: {
-        display: ['"Space Grotesk"', 'sans-serif'],
-        body: ['"Inter"', 'sans-serif'],
+        display: ['"Cairo"', '"Space Grotesk"', 'sans-serif'],
+        body: ['"Cairo"', '"Inter"', 'sans-serif'],
       },
       colors: {
         border: "hsl(var(--border))",
