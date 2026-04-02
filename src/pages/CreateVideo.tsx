@@ -106,20 +106,19 @@ const CreateVideo = () => {
         setGeneratedScenes(data.scenes);
         setShowPreview(true);
 
-        // Save video to database
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session) {
-          const firstImage = data.scenes.find((s: GeneratedScene) => s.imageUrl)?.imageUrl;
-          await supabase.from("videos").insert({
-            user_id: session.user.id,
-            title: `${VIDEO_TYPE_MAP[selections.videoType]?.split(",")[0] || "فيديو"} - ${selections.style}`,
-            prompt: selections.script,
-            settings: selections,
-            thumbnail_url: firstImage || null,
-            scenes: data.scenes,
-            status: "completed",
-          });
-        }
+        // Save video locally
+        const firstImage = data.scenes.find((s: GeneratedScene) => s.imageUrl)?.imageUrl;
+        const videoRecord = {
+          id: crypto.randomUUID(),
+          title: `${VIDEO_TYPE_MAP[selections.videoType]?.split(",")[0] || "فيديو"} - ${selections.style}`,
+          thumbnail_url: firstImage || null,
+          settings: selections,
+          scenes: data.scenes,
+          created_at: new Date().toISOString(),
+        };
+        const saved = JSON.parse(localStorage.getItem("ai_videos") || "[]");
+        saved.unshift(videoRecord);
+        localStorage.setItem("ai_videos", JSON.stringify(saved));
 
         toast({ title: "تم الإنتاج! 🎬", description: `تم توليد ${data.scenes.filter((s: GeneratedScene) => s.imageUrl).length} مشهد` });
       }
