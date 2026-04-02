@@ -151,7 +151,7 @@ const CreateVideo = () => {
                 <p className="text-xs text-muted-foreground">اختر الخيارات وسنصنع لك فيديو سينمائي</p>
               </div>
             </div>
-            <Button variant="outline" size="sm" onClick={() => navigate("/dashboard")} className="border-border/50 text-xs">
+            <Button variant="outline" size="sm" onClick={() => navigate("/")} className="border-border/50 text-xs">
               <ArrowRight className="w-3 h-3 ml-1" /> العودة
             </Button>
           </div>
@@ -200,7 +200,7 @@ const CreateVideo = () => {
                     💾 حفظ على الجهاز
                   </Button>
                   <div className="flex gap-3">
-                    <Button variant="outline" onClick={() => navigate("/dashboard")} className="border-border/50">
+                    <Button variant="outline" onClick={() => navigate("/")} className="border-border/50">
                       العودة للوحة التحكم
                     </Button>
                     <Button onClick={() => { setWizardDone(false); setGeneratedScenes([]); setShowPreview(false); }}>
