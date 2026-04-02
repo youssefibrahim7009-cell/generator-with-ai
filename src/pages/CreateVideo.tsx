@@ -185,13 +185,35 @@ const CreateVideo = () => {
                 <VideoPreview scenes={generatedScenes} sceneDuration={sceneDuration} />
               )}
               {showPreview && (
-                <div className="flex justify-center gap-3">
-                  <Button variant="outline" onClick={() => navigate("/dashboard")} className="border-border/50">
-                    العودة للوحة التحكم
+                <div className="flex flex-col items-center gap-3">
+                  <Button
+                    variant="secondary"
+                    className="w-full max-w-xs font-display font-semibold"
+                    onClick={() => {
+                      const validScenes = generatedScenes.filter(s => s.imageUrl);
+                      if (validScenes.length === 0) return;
+                      validScenes.forEach((scene, i) => {
+                        const link = document.createElement("a");
+                        link.href = scene.imageUrl!;
+                        link.download = `scene-${i + 1}.png`;
+                        link.target = "_blank";
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                      });
+                      toast({ title: "جاري التحميل 💾", description: "يتم حفظ المشاهد على جهازك" });
+                    }}
+                  >
+                    💾 حفظ على الجهاز
                   </Button>
-                  <Button onClick={() => { setWizardDone(false); setGeneratedScenes([]); setShowPreview(false); }}>
-                    فيديو جديد
-                  </Button>
+                  <div className="flex gap-3">
+                    <Button variant="outline" onClick={() => navigate("/dashboard")} className="border-border/50">
+                      العودة للوحة التحكم
+                    </Button>
+                    <Button onClick={() => { setWizardDone(false); setGeneratedScenes([]); setShowPreview(false); }}>
+                      فيديو جديد
+                    </Button>
+                  </div>
                 </div>
               )}
             </div>
