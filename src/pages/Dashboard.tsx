@@ -1,9 +1,8 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Clapperboard, Plus, LogOut, Clock, Play, Trash2, Loader2 } from "lucide-react";
+import { Clapperboard, Plus, Clock, Play, Trash2 } from "lucide-react";
 
 interface VideoRecord {
   id: string;
@@ -18,32 +17,16 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [videos, setVideos] = useState<VideoRecord[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [userName, setUserName] = useState("");
 
   useEffect(() => {
-    const checkAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { navigate("/auth"); return; }
-      
-      const { data: profile } = await supabase.from("profiles").select("display_name").eq("user_id", session.user.id).single();
-      setUserName(profile?.display_name || session.user.email?.split("@")[0] || "");
-      
-      const { data: vids } = await supabase.from("videos").select("*").order("created_at", { ascending: false });
-      setVideos((vids as VideoRecord[]) || []);
-      setLoading(false);
-    };
-    checkAuth();
-  }, [navigate]);
+    const saved = localStorage.getItem("ai_videos");
+    if (saved) setVideos(JSON.parse(saved));
+  }, []);
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    navigate("/auth");
-  };
-
-  const handleDelete = async (id: string) => {
-    await supabase.from("videos").delete().eq("id", id);
-    setVideos((prev) => prev.filter((v) => v.id !== id));
+  const handleDelete = (id: string) => {
+    const updated = videos.filter((v) => v.id !== id);
+    setVideos(updated);
+    localStorage.setItem("ai_videos", JSON.stringify(updated));
     toast({ title: "تم الحذف", description: "تم حذف الفيديو بنجاح" });
   };
 
@@ -62,12 +45,9 @@ const Dashboard = () => {
               </div>
               <div>
                 <h1 className="font-display text-xl font-bold text-gradient">AI Video Studio</h1>
-                <p className="text-xs text-muted-foreground">مرحباً، {userName}</p>
+                <p className="text-xs text-muted-foreground">إنتاج فيديوهات بالذكاء الاصطناعي</p>
               </div>
             </div>
-            <Button variant="ghost" size="sm" onClick={handleLogout}>
-              <LogOut className="w-4 h-4 ml-1" /> خروج
-            </Button>
           </div>
         </header>
 
@@ -79,11 +59,7 @@ const Dashboard = () => {
             </Button>
           </div>
 
-          {loading ? (
-            <div className="flex justify-center py-20">
-              <Loader2 className="w-8 h-8 text-primary animate-spin" />
-            </div>
-          ) : videos.length === 0 ? (
+          {videos.length === 0 ? (
             <div className="bg-gradient-card rounded-2xl border border-border/50 p-12 text-center">
               <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
                 <Clapperboard className="w-8 h-8 text-primary" />

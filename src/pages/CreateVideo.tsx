@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Clapperboard, Loader2, ArrowRight } from "lucide-react";
@@ -52,13 +52,7 @@ const CreateVideo = () => {
   const [wizardData, setWizardData] = useState<any>(null);
   const [wizardDone, setWizardDone] = useState(false);
 
-  useEffect(() => {
-    const checkAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) navigate("/auth");
-    };
-    checkAuth();
-  }, [navigate]);
+
 
   const handleWizardComplete = async (selections: any) => {
     setWizardData(selections);
@@ -112,20 +106,19 @@ const CreateVideo = () => {
         setGeneratedScenes(data.scenes);
         setShowPreview(true);
 
-        // Save video to database
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session) {
-          const firstImage = data.scenes.find((s: GeneratedScene) => s.imageUrl)?.imageUrl;
-          await supabase.from("videos").insert({
-            user_id: session.user.id,
-            title: `${VIDEO_TYPE_MAP[selections.videoType]?.split(",")[0] || "فيديو"} - ${selections.style}`,
-            prompt: selections.script,
-            settings: selections,
-            thumbnail_url: firstImage || null,
-            scenes: data.scenes,
-            status: "completed",
-          });
-        }
+        // Save video locally
+        const firstImage = data.scenes.find((s: GeneratedScene) => s.imageUrl)?.imageUrl;
+        const videoRecord = {
+          id: crypto.randomUUID(),
+          title: `${VIDEO_TYPE_MAP[selections.videoType]?.split(",")[0] || "فيديو"} - ${selections.style}`,
+          thumbnail_url: firstImage || null,
+          settings: selections,
+          scenes: data.scenes,
+          created_at: new Date().toISOString(),
+        };
+        const saved = JSON.parse(localStorage.getItem("ai_videos") || "[]");
+        saved.unshift(videoRecord);
+        localStorage.setItem("ai_videos", JSON.stringify(saved));
 
         toast({ title: "تم الإنتاج! 🎬", description: `تم توليد ${data.scenes.filter((s: GeneratedScene) => s.imageUrl).length} مشهد` });
       }
@@ -158,7 +151,7 @@ const CreateVideo = () => {
                 <p className="text-xs text-muted-foreground">اختر الخيارات وسنصنع لك فيديو سينمائي</p>
               </div>
             </div>
-            <Button variant="outline" size="sm" onClick={() => navigate("/dashboard")} className="border-border/50 text-xs">
+            <Button variant="outline" size="sm" onClick={() => navigate("/")} className="border-border/50 text-xs">
               <ArrowRight className="w-3 h-3 ml-1" /> العودة
             </Button>
           </div>
@@ -207,7 +200,7 @@ const CreateVideo = () => {
                     💾 حفظ على الجهاز
                   </Button>
                   <div className="flex gap-3">
-                    <Button variant="outline" onClick={() => navigate("/dashboard")} className="border-border/50">
+                    <Button variant="outline" onClick={() => navigate("/")} className="border-border/50">
                       العودة للوحة التحكم
                     </Button>
                     <Button onClick={() => { setWizardDone(false); setGeneratedScenes([]); setShowPreview(false); }}>
