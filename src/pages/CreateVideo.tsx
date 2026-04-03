@@ -11,6 +11,7 @@ interface GeneratedScene {
   title: string;
   description: string;
   imageUrl: string | null;
+  videoUrl?: string | null;
   error?: string;
 }
 
