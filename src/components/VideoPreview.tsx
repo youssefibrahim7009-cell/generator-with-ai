@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Play, Pause, SkipForward, SkipBack, Maximize2, Minimize2, Volume2 } from "lucide-react";
+import { Play, Pause, SkipForward, SkipBack, Maximize2, Minimize2, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface GeneratedScene {
   title: string;
   description: string;
   imageUrl: string | null;
+  videoUrl?: string | null;
   error?: string;
 }
 
@@ -21,8 +22,10 @@ const VideoPreview = ({ scenes, sceneDuration }: VideoPreviewProps) => {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [kenBurnsPhase, setKenBurnsPhase] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
 
-  const validScenes = scenes.filter((s) => s.imageUrl);
+  const validScenes = scenes.filter((s) => s.imageUrl || s.videoUrl);
+  const hasVideo = validScenes.some((s) => s.videoUrl);
 
   const nextScene = useCallback(() => {
     if (currentScene >= validScenes.length - 1) {
@@ -42,8 +45,10 @@ const VideoPreview = ({ scenes, sceneDuration }: VideoPreviewProps) => {
     setKenBurnsPhase((prev) => prev + 1);
   }, [validScenes.length]);
 
+  // For image-only scenes, auto-advance with timer
   useEffect(() => {
-    if (!isPlaying || validScenes.length === 0) return;
+    const scene = validScenes[currentScene];
+    if (!isPlaying || validScenes.length === 0 || scene?.videoUrl) return;
     const interval = setInterval(() => {
       setProgress((prev) => {
         if (prev >= 100) {
@@ -54,7 +59,19 @@ const VideoPreview = ({ scenes, sceneDuration }: VideoPreviewProps) => {
       });
     }, 50);
     return () => clearInterval(interval);
-  }, [isPlaying, sceneDuration, nextScene, validScenes.length]);
+  }, [isPlaying, sceneDuration, nextScene, validScenes.length, currentScene]);
+
+  // Handle video element play/pause
+  useEffect(() => {
+    const scene = validScenes[currentScene];
+    if (scene?.videoUrl && videoRef.current) {
+      if (isPlaying) {
+        videoRef.current.play().catch(() => {});
+      } else {
+        videoRef.current.pause();
+      }
+    }
+  }, [isPlaying, currentScene]);
 
   const toggleFullscreen = useCallback(() => {
     if (!containerRef.current) return;
@@ -85,7 +102,6 @@ const VideoPreview = ({ scenes, sceneDuration }: VideoPreviewProps) => {
   const totalDuration = validScenes.length * sceneDuration;
   const currentTime = currentScene * sceneDuration + (progress / 100) * sceneDuration;
 
-  // Ken Burns transform patterns
   const kenBurnsTransforms = [
     "scale(1.15) translate(-3%, -2%)",
     "scale(1.1) translate(2%, -1%)",
@@ -103,7 +119,7 @@ const VideoPreview = ({ scenes, sceneDuration }: VideoPreviewProps) => {
     <div ref={containerRef} className={`space-y-3 ${isFullscreen ? "bg-background p-6 flex flex-col justify-center h-full" : ""}`}>
       {/* Video Display */}
       <div className="relative rounded-xl overflow-hidden border border-border/50 aspect-video bg-card group">
-        {/* Scene Images with crossfade */}
+        {/* Scene content */}
         {validScenes.map((s, i) => (
           <div
             key={i}
@@ -113,17 +129,35 @@ const VideoPreview = ({ scenes, sceneDuration }: VideoPreviewProps) => {
               zIndex: i === currentScene ? 1 : 0,
             }}
           >
-            <img
-              src={s.imageUrl!}
-              alt={s.title}
-              className="w-full h-full object-cover"
-              style={{
-                transform: i === currentScene && isPlaying
-                  ? kenBurnsTransforms[(kenBurnsPhase + i) % kenBurnsTransforms.length]
-                  : "scale(1)",
-                transition: `transform ${sceneDuration}s ease-in-out`,
-              }}
-            />
+            {s.videoUrl ? (
+              <video
+                ref={i === currentScene ? videoRef : undefined}
+                src={s.videoUrl}
+                className="w-full h-full object-cover"
+                loop
+                playsInline
+                muted={false}
+                onEnded={() => nextScene()}
+                onTimeUpdate={(e) => {
+                  const vid = e.currentTarget;
+                  if (vid.duration) {
+                    setProgress((vid.currentTime / vid.duration) * 100);
+                  }
+                }}
+              />
+            ) : (
+              <img
+                src={s.imageUrl!}
+                alt={s.title}
+                className="w-full h-full object-cover"
+                style={{
+                  transform: i === currentScene && isPlaying
+                    ? kenBurnsTransforms[(kenBurnsPhase + i) % kenBurnsTransforms.length]
+                    : "scale(1)",
+                  transition: `transform ${sceneDuration}s ease-in-out`,
+                }}
+              />
+            )}
           </div>
         ))}
 
@@ -133,7 +167,6 @@ const VideoPreview = ({ scenes, sceneDuration }: VideoPreviewProps) => {
 
         {/* Overlay controls on hover */}
         <div className="absolute inset-0 z-20 flex flex-col justify-between opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-          {/* Top bar */}
           <div className="flex items-center justify-between p-3">
             <div className="bg-background/70 backdrop-blur-sm rounded-lg px-3 py-1.5 text-xs font-display font-semibold flex items-center gap-1.5">
               <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
@@ -143,18 +176,12 @@ const VideoPreview = ({ scenes, sceneDuration }: VideoPreviewProps) => {
               <span className="bg-background/70 backdrop-blur-sm rounded-lg px-2.5 py-1 text-xs font-display">
                 {currentScene + 1} / {validScenes.length}
               </span>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={toggleFullscreen}
-                className="h-8 w-8 bg-background/50 backdrop-blur-sm hover:bg-background/70"
-              >
+              <Button variant="ghost" size="icon" onClick={toggleFullscreen} className="h-8 w-8 bg-background/50 backdrop-blur-sm hover:bg-background/70">
                 {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
               </Button>
             </div>
           </div>
 
-          {/* Center play button */}
           <div className="flex-1 flex items-center justify-center">
             <Button
               onClick={() => setIsPlaying(!isPlaying)}
@@ -165,7 +192,6 @@ const VideoPreview = ({ scenes, sceneDuration }: VideoPreviewProps) => {
             </Button>
           </div>
 
-          {/* Bottom info */}
           <div className="p-3">
             <div className="bg-background/70 backdrop-blur-sm rounded-lg p-3">
               <p className="font-display text-sm font-semibold">{scene.title}</p>
@@ -231,7 +257,11 @@ const VideoPreview = ({ scenes, sceneDuration }: VideoPreviewProps) => {
               i === currentScene ? "border-primary glow-primary scale-[1.02]" : "border-border/30 opacity-50 hover:opacity-80"
             }`}
           >
-            <img src={s.imageUrl!} alt={s.title} className="w-full h-full object-cover" />
+            {s.videoUrl ? (
+              <video src={s.videoUrl} className="w-full h-full object-cover" muted playsInline />
+            ) : (
+              <img src={s.imageUrl!} alt={s.title} className="w-full h-full object-cover" />
+            )}
             <div className="absolute inset-0 bg-gradient-to-t from-background/70 to-transparent flex items-end p-1">
               <span className="text-[9px] font-display font-medium truncate">{s.title}</span>
             </div>

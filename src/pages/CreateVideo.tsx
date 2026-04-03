@@ -11,6 +11,7 @@ interface GeneratedScene {
   title: string;
   description: string;
   imageUrl: string | null;
+  videoUrl?: string | null;
   error?: string;
 }
 
@@ -183,12 +184,14 @@ const CreateVideo = () => {
                     variant="secondary"
                     className="w-full max-w-xs font-display font-semibold"
                     onClick={() => {
-                      const validScenes = generatedScenes.filter(s => s.imageUrl);
+                    const validScenes = generatedScenes.filter(s => s.imageUrl || s.videoUrl);
                       if (validScenes.length === 0) return;
                       validScenes.forEach((scene, i) => {
+                        const url = scene.videoUrl || scene.imageUrl;
+                        if (!url) return;
                         const link = document.createElement("a");
-                        link.href = scene.imageUrl!;
-                        link.download = `scene-${i + 1}.png`;
+                        link.href = url;
+                        link.download = scene.videoUrl ? `scene-${i + 1}.mp4` : `scene-${i + 1}.png`;
                         link.target = "_blank";
                         document.body.appendChild(link);
                         link.click();
