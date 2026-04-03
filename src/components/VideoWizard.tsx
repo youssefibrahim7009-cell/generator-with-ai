@@ -183,9 +183,8 @@ const VideoWizard = ({ onComplete }: VideoWizardProps) => {
         if (!file) return;
         setUploading(true);
         try {
-          const { data: { session } } = await supabase.auth.getSession();
-          if (!session) return;
-          const path = `${session.user.id}/${Date.now()}-${file.name}`;
+          const randomId = crypto.randomUUID();
+          const path = `public/${randomId}-${file.name}`;
           const { error } = await supabase.storage.from("reference-images").upload(path, file);
           if (error) throw error;
           const { data: urlData } = supabase.storage.from("reference-images").getPublicUrl(path);
